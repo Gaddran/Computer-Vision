@@ -115,6 +115,20 @@ for tipo_tumor, lista in subset_training.items():
     print(f"- {tipo_tumor}: {len(lista)} imágenes")
 
 
+def check_size(imagenes):
+    sizes = set()
+    for subcarpeta, imagenes_lista in imagenes.items():
+        for imagen, nombre in imagenes_lista:
+            sizes.add(imagen.size)
+    print(f"Dimensiones de las imágenes: ")
+    print(*sizes, sep="\n")
+
+
+# **Importante:** Se puede ver que las imágenes se presentan varios tamaños, lo cual no es conductivo para el procesamiento. Por lo tanto, se tendrán que escalar a un tamaño general.
+
+check_size(subset_training)
+
+
 # # 3. Preprocesamiento de datos
 # ## 3.1 RGB vs. Escala de Grises
 
