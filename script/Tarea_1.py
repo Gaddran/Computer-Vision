@@ -72,7 +72,10 @@ def mostrar_imagen(imagen, nombre_imagen='', titulo=f"Imagen", ax=None):
         ax.imshow(imagen, cmap='gray')
     else:
         ax.imshow(imagen)
-    ax.set_title(f"{titulo}")
+    if titulo == 'Imagen': 
+        ax.set_title(f"{nombre_imagen}") 
+    else:  
+        ax.set_title(f"{titulo}")
     ax.axis('off')
     if ax is None:
         plt.show()
@@ -169,8 +172,8 @@ subset_training_grey, ej = convertir_grayscale(subset_training)
 fig, axs = plt.subplots(figsize=(11, 5), nrows=1, ncols=2, squeeze=False)
 fig.suptitle("Imagen original vs Imagen en escala de grises")
 axs = axs.flatten()
-mostrar_imagen(*subset_training['glioma'][ej], ax=axs[0])
-mostrar_imagen(*subset_training_grey['glioma'][ej], ax=axs[1])
+mostrar_imagen(*subset_training['glioma'][ej], ax=axs[0], titulo='Imagen original')
+mostrar_imagen(*subset_training_grey['glioma'][ej], ax=axs[1], titulo='Imagen en escala de grises')
 
 
 # ## 3.2 Ajuste de tamaño
@@ -191,7 +194,7 @@ def resize_imagenes(imagenes, nuevo_tamano=(256, 256)):
 subset_training_256 = resize_imagenes(subset_training_grey, nuevo_tamano=(256, 256)) #entrada de 256x256
 
 
-fig, axs = plt.subplots(figsize=(10, 10), nrows=2, ncols=2, squeeze=True)
+fig, axs = plt.subplots(figsize=(11, 10), nrows=2, ncols=2, squeeze=True)
 fig.suptitle("Imagen original vs Imagen reescalada")
 axs = axs.flatten()
 mostrar_imagen(*subset_training_grey['glioma'][ej], titulo="Imagen original",ax=axs[0])
