@@ -139,6 +139,9 @@ def plot_class_distribution(df):
 val_df, ts_df = train_test_split(ts_df, train_size=0.5, random_state=1122, stratify=ts_df['Class'])
 
 
+# En los siguientes diagramas podemos ver que el dataset se compone de 3 grupos: `ts_df`, `val_df` y `tr_df`. Cada uno contiene imágenes de las 4 clases presentes en los datos: `notumor`, `pituitary`, `meningioma` y `glioma`. El conjunto `tr_df` consiste en 5712 imágenes, `ts_df` en 656 imágenes y `val_df` en una cantidad de imágenes no especificada.
+# 
+
 plot_class_distribution(tr_df)
 
 
@@ -262,15 +265,22 @@ def plot_images(images, labels, classes, title):
 plot_images(images, labels, classes, title='Ejemplos de Imágenes de Entrenamiento (Originales)')
 
 
-# 2. 
+# 2. Las imágenes rotadas ayudan a generalizar el modelo. En este caso en particular, dado que los cortes pueden presentarse en diferentes orientaciones, es probable que esto también confunda al modelo.
+# 
 
 images, labels = next(tr_gen_rotated)
 plot_images(images, labels, classes, title='Ejemplos de Imágenes de Entrenamiento (Rotadas)')
 
 
+# 3. En este caso, las imágenes se presentan trasladadas además de rotadas. Se puede notar rápidamente que se pierde información y, en algunos casos, se generan artefactos. Es altamente probable que esto disminuya la utilidad final del modelo.
+# 
+
 images, labels = next(tr_gen_rotated_shifted)
 plot_images(images, labels, classes, title='Ejemplos de Imágenes de Entrenamiento (Rotadas y Desplazadas)')
 
+
+# Se crean los modelos. Su arquitectura se puede ver mejor en la siguiente imagen: ![Arquitectura del Modelo](model.png)
+# 
 
 # Definición del modelo
 
@@ -308,6 +318,9 @@ model.summary()
 
 
 
+
+# Cada modelo se entrena antes de crear el siguiente.
+# 
 
 hist = model.fit(tr_gen,
                      epochs=epocas,
@@ -399,8 +412,14 @@ def plot_training_history(hist):
     plt.show()
 
 
+# El modelo original se estabiliza rápidamente, obteniendo pequeñas ganancias después de la cuarta iteración.
+# 
+
 plot_training_history(hist)
 
+
+# Se crea el segundo modelo para las imágenes rotadas, utilizando la misma arquitectura que el modelo original.
+# 
 
 model_rotated = Sequential()
 
@@ -441,6 +460,11 @@ hist_rotated = model.fit(tr_gen_rotated,
 plot_training_history(hist_rotated)
 
 
+# En este caso, si bien el modelo muestra una tendencia clara de mejora, es fácil ver que la validación no acompaña al entrenamiento y eventualmente diverge. En una iteración futura, podría aumentarse el número de épocas y observar cómo evoluciona.
+# 
+# 
+# 
+
 model_rotated_shifted = Sequential()
 
 model_rotated_shifted.add(Conv2D(64, kernel_size=(3, 3),activation='relu', input_shape=(256,256,1)))
@@ -480,6 +504,17 @@ hist_rotated_shifted = model.fit(tr_gen_rotated_shifted,
 plot_training_history(hist_rotated_shifted)
 
 
+# En este caso, la validación oscila con una amplitud incluso mayor que en el caso anterior, lo que permite deducir que hay una alta probabilidad de que esto haya confundido al modelo.
+# 
+
+# # 4. Tiempo de Procesamiento
+# 
+
+# Una vez entrenados los modelos, medimos el tiempo de procesamiento del conjunto de prueba en cada uno y, finalmente, obtenemos la matriz de confusión de cada modelo.
+# 
+
+# ## 4.1 Todas las imagenes
+
 repeticiones = 10
 tiempo = []
 for i in range(repeticiones):
@@ -517,12 +552,14 @@ df_tiempo_rotado_shifted = pd.DataFrame(tiempo_rotado_shifted)
 y_pred_rotado_shifted = np.argmax(pred_rotado_shifted, axis=1)
 
 
-total_muestras=len(ts_gen.filenames) # total de imagenes en el generador de test
-steps= int((total_muestras/ts_gen.batch_size)//2) # pasos por epoca
-
-
 df_tiempo_final = df_tiempo.join(df_tiempo_rotado, how='outer').join(df_tiempo_rotado_shifted, how='outer')
 df_tiempo_final.head(10)
+
+
+# ## 4.2 Mitad de las Imagenes 
+
+total_muestras=len(ts_gen.filenames) # total de imagenes en el generador de test
+steps= int((total_muestras/ts_gen.batch_size)//2) # pasos por epoca
 
 
 tiempo_mitad = []
@@ -561,13 +598,27 @@ df_tiempo_mitad_rotado_shifted = pd.DataFrame(tiempo_mitad_rotado_shifted)
 y_pred_mitad_rotado_shifted = np.argmax(pred_mitad_rotado_shifted, axis=1)
 
 
+# Se crea el dataframe final con los tiempos de cada modelo
 df_tiempo_mitad_final = df_tiempo_mitad.join(df_tiempo_mitad_rotado, how='outer').join(df_tiempo_mitad_rotado_shifted, how='outer')
 df_tiempo_final = df_tiempo_final.join(df_tiempo_mitad_final, how='outer')
 df_tiempo_final.head(10)
 
 
+# Obtenemos las medidas estadisticas de los tiempos de cada modelo 
 df_tiempo_final.describe()
 
+
+# Finalmente, se obtienen los resultados estadísticos del tiempo de procesamiento, donde se puede observar que, si bien la media varía, existe una relación directa entre el tiempo y la cantidad de imágenes procesadas.  
+# También se puede ver que debe existir algún tipo de error en la medición, dado que hay casos donde el tiempo medido es negativo.
+# Es posible que esto sea debido al uso de GPU con tensorflow, en futuras iteraciones se buscara una manera diferente de medir el tiempo corrido.
+# 
+
+# # 5. Resultados del procesamiento
+
+# ## 5.1 Modelo Original
+# 
+# El modelo presenta un buen rendimiento en las clases `notumor` y `pituitary`, sin embargo, se confunde ligeramente con la clase `glioma` y no muestra sensibilidad hacia la clase `meningioma`. Es posible que, al ajustar los hiperparámetros, se logre mejorar el rendimiento del modelo en futuras iteraciones.
+# 
 
 def confusion_matrix_plot(y_predicho, title='Confusion Matrix'):
     cm = confusion_matrix(ts_gen.classes, y_predicho)
@@ -578,10 +629,38 @@ def confusion_matrix_plot(y_predicho, title='Confusion Matrix'):
     plt.ylabel('True')
     plt.title(title)
     plt.show()
+    
 
 confusion_matrix_plot(y_pred, title='Matriz de Confusión - Modelo Original')
+
+
+
+
+
+from sklearn.metrics import classification_report
+
+print(classification_report(ts_gen.classes, y_pred, target_names=ts_gen.class_indices.keys()))
+
+
+# El modelo se presenta bastante robusto para la mayoria de los casos pero esta fundamentalmente atrofiado para el caso de meningioma, más rondas de preprocesamiento y tuneo de hiperparametros sera necesario antes de que pueda cumplir con su funcionamiento. 
+
+# ## 5.2 Modelo Rotado
+# 
+# En este caso, a diferencia del anterior el modelo se vio completamente encandilado con la clase meningioma, asignando todas las imagenes a esta clase
+
 confusion_matrix_plot(y_pred_rotado, title='Matriz de Confusión - Modelo Rotado')
+
+
+print(classification_report(ts_gen.classes, y_pred_rotado, target_names=ts_gen.class_indices.keys()))
+
+
+# ## 5.3 Modelo Rotado y Desplazado
+# 
+# Nuevamente se puede observar que el modelo asigna todas las imágenes de forma sobrevalorada a clases incorrectas. Esto, al igual que el modelo anterior, genera una fuerte implicancia de que este tipo de imágenes no aporta grandes beneficios al modelo con traslados y rotaciones, dado que es un ámbito donde la generalización no es tan importante como la especificidad.
+# 
+
 confusion_matrix_plot(y_pred_rotado_shifted, title='Matriz de Confusión - Modelo Rotado y Desplazado')
 
 
+print(classification_report(ts_gen.classes, y_pred_rotado_shifted, target_names=ts_gen.class_indices.keys()))
 
