@@ -48,11 +48,13 @@ from glob import glob
 # Modelos
 import tensorflow as tf
 from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Dense, Dropout, Flatten
+from tensorflow.keras.layers import Dense, Flatten
 from tensorflow.keras.optimizers import Adamax
-from tensorflow.keras.metrics import Precision, Recall
+from tensorflow.keras.metrics import Accuracy, Precision, Recall
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
-from tensorflow.keras.layers import Dense, Conv2D, MaxPooling2D, Flatten, Dropout, BatchNormalization, AveragePooling2D
+from tensorflow.keras.layers import Dense, Conv2D, MaxPooling2D, Flatten, BatchNormalization 
+from tensorflow.keras.callbacks import ModelCheckpoint
+from tensorflow.keras.losses import CategoricalCrossentropy
 
 # Configuración de TensorFlow para evitar advertencias y errores de GPU
 import warnings
@@ -309,10 +311,11 @@ model.add(Dense(64, activation='relu'))
 model.add(Dense(4, activation='softmax'))
 
 model.compile(Adamax(learning_rate= 0.001),
-              loss= 'categorical_crossentropy',
+              loss= CategoricalCrossentropy(),
               metrics= ['accuracy',
                         Precision(),
                         Recall()])
+
 
 model.summary()
 
@@ -322,10 +325,21 @@ model.summary()
 # Cada modelo se entrena antes de crear el siguiente.
 # 
 
+checkpoint_filepath = 'modelo_original.keras'
+model_checkpoint_callback = ModelCheckpoint(
+    filepath=checkpoint_filepath,
+    monitor='val_accuracy', 
+    save_best_only=True,   
+    mode='max',            
+    verbose=1              
+)
+
 hist = model.fit(tr_gen,
                      epochs=epocas,
                      validation_data=valid_gen,
-                     shuffle= False)
+                     shuffle= False,
+                     callbacks=[model_checkpoint_callback]
+                     )
 
 
 
@@ -443,17 +457,25 @@ model_rotated.add(Dense(64, activation='relu'))
 model_rotated.add(Dense(4, activation='softmax'))
 
 model_rotated.compile(Adamax(learning_rate= 0.001),
-              loss= 'categorical_crossentropy',
+              loss= CategoricalCrossentropy(),
               metrics= ['accuracy',
                         Precision(),
                         Recall()])
-
 model_rotated.summary()
 
 
+checkpoint_filepath_rotado = 'modelo_rotado.keras'
+model_checkpoint_callback_rotado = ModelCheckpoint(
+    filepath=checkpoint_filepath_rotado,
+    monitor='val_accuracy', 
+    save_best_only=True,   
+    mode='max',            
+    verbose=1              
+)
 hist_rotated = model.fit(tr_gen_rotated,
                      epochs=epocas,
                      validation_data=valid_gen_rotated,
+                     callbacks=[model_checkpoint_callback_rotado],
                      shuffle= False)
 
 
@@ -487,7 +509,7 @@ model_rotated_shifted.add(Dense(64, activation='relu'))
 model_rotated_shifted.add(Dense(4, activation='softmax'))
 
 model_rotated_shifted.compile(Adamax(learning_rate= 0.001),
-              loss= 'categorical_crossentropy',
+              loss= CategoricalCrossentropy(),
               metrics= ['accuracy',
                         Precision(),
                         Recall()])
@@ -495,16 +517,25 @@ model_rotated_shifted.compile(Adamax(learning_rate= 0.001),
 model_rotated_shifted.summary()
 
 
+checkpoint_filepath_rotado_shifted = 'modelo_rotado_shifted.keras'
+model_checkpoint_callback_rotado_shifted = ModelCheckpoint(
+    filepath=checkpoint_filepath_rotado_shifted,
+    monitor='val_accuracy', 
+    save_best_only=True,   
+    mode='max',            
+    verbose=1              
+)
 hist_rotated_shifted = model.fit(tr_gen_rotated_shifted,
                      epochs=epocas,
                      validation_data=valid_gen_rotated_shifted,
+                     callbacks=[model_checkpoint_callback_rotado_shifted],
                      shuffle= False)
 
 
 plot_training_history(hist_rotated_shifted)
 
 
-# En este caso, la validación oscila con una amplitud incluso mayor que en el caso anterior, lo que permite deducir que hay una alta probabilidad de que esto haya confundido al modelo.
+# En este caso, la validación oscila con una amplitud incluso mayor que en el caso anterior, lo que permite deducir que hay una alta probabilidad de que el preprocesamiento haya confundido al modelo.
 # 
 
 # # 4. Tiempo de Procesamiento
@@ -608,17 +639,42 @@ df_tiempo_final.head(10)
 df_tiempo_final.describe()
 
 
-# Finalmente, se obtienen los resultados estadísticos del tiempo de procesamiento, donde se puede observar que, si bien la media varía, existe una relación directa entre el tiempo y la cantidad de imágenes procesadas.  
-# También se puede ver que debe existir algún tipo de error en la medición, dado que hay casos donde el tiempo medido es negativo.
-# Es posible que esto sea debido al uso de GPU con tensorflow, en futuras iteraciones se buscara una manera diferente de medir el tiempo corrido.
+# Finalmente, se obtienen los resultados estadísticos del tiempo de procesamiento, donde se puede observar que, si bien la media varía, existe una relación directa entre el tiempo y la cantidad de imágenes procesadas. Es imporante notar tambien que la desviación estandar es mucho menor en el caso de la mitad de las imagenes.
 # 
+
+# plot de histograma de las estadisticas de los tiempos de cada modelo
+
+fig, axs = plt.subplots(2, 3, figsize=(30, 20))
+axs = axs.flatten()
+sns.histplot(df_tiempo_final['tiempo'], kde=True, bins=20, color='blue', ax=axs[0])
+sns.histplot(df_tiempo_final['tiempo_rotado'], kde=True, bins=20, color='blue', ax=axs[1])
+sns.histplot(df_tiempo_final['tiempo_rotado_shifted'], kde=True, bins=20, color='blue', ax=axs[2])
+sns.histplot(df_tiempo_final['tiempo_mitad'], kde=True, bins=20, color='blue', ax=axs[3])
+sns.histplot(df_tiempo_final['tiempo_mitad_rotado'], kde=True, bins=20, color='blue', ax=axs[4])
+sns.histplot(df_tiempo_final['tiempo_mitad_rotado_shifted'], kde=True, bins=20, color='blue', ax=axs[5])
+axs[0].set_title('Histograma de Tiempos del Modelo Original')
+axs[1].set_title('Histograma de Tiempos del Modelo Rotado')
+axs[2].set_title('Histograma de Tiempos del Modelo Rotado y Desplazado')
+axs[3].set_title('Histograma de Tiempos del Modelo Original (Mitad)')
+axs[4].set_title('Histograma de Tiempos del Modelo Rotado (Mitad)')
+axs[5].set_title('Histograma de Tiempos del Modelo Rotado y Desplazado (Mitad)')
+plt.tight_layout()
+
 
 # # 5. Resultados del procesamiento
 
+# **Importante**  
+# Para la predicción se utilizara el modelo de la epoca con mejor `val_accuracy`
+
 # ## 5.1 Modelo Original
 # 
-# El modelo presenta un buen rendimiento en las clases `notumor` y `pituitary`, sin embargo, se confunde ligeramente con la clase `glioma` y no muestra sensibilidad hacia la clase `meningioma`. Es posible que, al ajustar los hiperparámetros, se logre mejorar el rendimiento del modelo en futuras iteraciones.
+# El modelo presenta un exelente rendimiento en las todas clases, sin embargo, es posible que presente un overfitting al set utilizado, ideamente se obtendrian nuevas imagenes para testearlo pero se puede lograr un efecto similar procesando las imagenes de testeo, lo que queda abierto para futuras iteraciones.
 # 
+
+best_model = tf.keras.models.load_model(checkpoint_filepath)
+predicted_classes = best_model.predict(ts_gen)
+y_pred = np.argmax(predicted_classes, axis=1)
+
 
 def confusion_matrix_plot(y_predicho, title='Confusion Matrix'):
     cm = confusion_matrix(ts_gen.classes, y_predicho)
@@ -642,11 +698,17 @@ from sklearn.metrics import classification_report
 print(classification_report(ts_gen.classes, y_pred, target_names=ts_gen.class_indices.keys()))
 
 
-# El modelo se presenta bastante robusto para la mayoria de los casos pero esta fundamentalmente atrofiado para el caso de meningioma, más rondas de preprocesamiento y tuneo de hiperparametros sera necesario antes de que pueda cumplir con su funcionamiento. 
+# El modelo se presenta bastante robusto para la mayoria de los casos pero esta algo confundido en el caso de glioma, lo cual lo podria dejar atrofiado para el analisis medicinal, más rondas de preprocesamiento y tuneo de hiperparametros sera necesario antes de que pueda cumplir con su funcionamiento. 
 
 # ## 5.2 Modelo Rotado
 # 
-# En este caso, a diferencia del anterior el modelo se vio completamente encandilado con la clase meningioma, asignando todas las imagenes a esta clase
+# En este caso, al igual que en el caso anterior, el modelo se comporta bastante bien en la predicción de la mayoría de los casos, pero se muestra aún más confundido en el caso de `glioma` y `meningioma`. Dado que hubo un mayor preprocesamiento de imágenes, es muy probable que este modelo responda mejor a imágenes futuras, aunque esto deberá ser probado.
+# 
+
+best_model_rotado = tf.keras.models.load_model(checkpoint_filepath_rotado)
+predicted_classes_rotadas = best_model_rotado.predict(ts_gen)
+y_pred_rotado = np.argmax(predicted_classes_rotadas, axis=1)
+
 
 confusion_matrix_plot(y_pred_rotado, title='Matriz de Confusión - Modelo Rotado')
 
@@ -656,8 +718,14 @@ print(classification_report(ts_gen.classes, y_pred_rotado, target_names=ts_gen.c
 
 # ## 5.3 Modelo Rotado y Desplazado
 # 
-# Nuevamente se puede observar que el modelo asigna todas las imágenes de forma sobrevalorada a clases incorrectas. Esto, al igual que el modelo anterior, genera una fuerte implicancia de que este tipo de imágenes no aporta grandes beneficios al modelo con traslados y rotaciones, dado que es un ámbito donde la generalización no es tan importante como la especificidad.
+# Nuevamente se puede observar que el modelo clasifica más imágenes de forma incorrecta. Esto, al igual que en el modelo anterior, sugiere fuertemente que este tipo de preprocesamiento de imágenes no aporta grandes beneficios al desempeño del modelo, considerando que se trata de un ámbito donde la generalización no es tan importante como la especificidad, dado que todas las imágenes que se podrían analizar cumplirán con un formato muy similar.
 # 
+# 
+
+best_model_rotado_shifted = tf.keras.models.load_model(checkpoint_filepath_rotado_shifted)
+predicted_classes_rotadas_shifted = best_model_rotado_shifted.predict(ts_gen)
+y_pred_rotado_shifted = np.argmax(predicted_classes_rotadas_shifted, axis=1)
+
 
 confusion_matrix_plot(y_pred_rotado_shifted, title='Matriz de Confusión - Modelo Rotado y Desplazado')
 
