@@ -732,3 +732,13 @@ confusion_matrix_plot(y_pred_rotado_shifted, title='Matriz de Confusión - Model
 
 print(classification_report(ts_gen.classes, y_pred_rotado_shifted, target_names=ts_gen.class_indices.keys()))
 
+
+# # 6. Conclusiones
+# 
+# Analizando el comportamiento de los modelos y considerando las restricciones asociadas a las imágenes que un sistema de este tipo podría recibir en un contexto real, se concluye que los beneficios del preprocesamiento de imágenes, como rotaciones y desplazamientos, no se reflejan en una mejora sustancial del rendimiento del modelo. De hecho, en algunos casos, estas transformaciones parecen aumentar la confusión del modelo entre clases similares.
+# 
+# Una posible línea de mejora radica en que las imágenes médicas tienden a seguir estándares consistentes en cuanto a orientación, resolución y tipo de corte. Por lo tanto, la necesidad de una generalización extensiva no resulta tan relevante en este contexto.
+# 
+# Siguiendo esta línea, una posible estrategia futura sería separar las imágenes según su tipo de corte (axial, coronal, sagital) y entrenar modelos específicos para cada uno de ellos. Esto podría reducir la ambigüedad en la clasificación y facilitar el desarrollo de un modelo aplicable en entornos reales.
+# 
+# 
